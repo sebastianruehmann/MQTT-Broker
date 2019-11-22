@@ -29,4 +29,5 @@ use Mix.Config
 #
 #     import_config "#{Mix.env}.exs"
 
-config :mqtt_broker, port: 1883 # 8883 for tls
+config :mqtt_broker,
+    port: 1883 # 8883 for tls

@@ -50,7 +50,6 @@ defmodule MqttBroker.Listener do
   defp serve(socket) do
     socket
     |> read_data
-
     serve(socket)
   end
 

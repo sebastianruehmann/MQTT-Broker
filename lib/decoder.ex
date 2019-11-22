@@ -4,7 +4,9 @@ defmodule MqttBroker.Decoder do
   alias MqttBroker.Messages.Requests
 
   def decode(msg) do
-    IO.inspect decode_fixed_header(msg) |> decode_message
+    msg
+    |> decode_fixed_header
+    |> decode_message
   end
 
   defp decode_fixed_header(<<type :: size(4), dup :: size(1), qos :: size(2),
