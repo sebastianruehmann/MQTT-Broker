@@ -3,6 +3,7 @@ defmodule MqttBroker.Listener do
   require Logger
 
   alias MqttBroker.Decoder
+  @listener MqttBroker.Listener.Ssl
   @moduledoc """
   Documentation for MqttBroker.
   """
@@ -22,41 +23,50 @@ defmodule MqttBroker.Listener do
   end
 
   def init(port) do
-    # TODO: Allow TLS encryption
-    {:ok, pid} = :gen_tcp.listen(port, [
-      :binary,
-      {:packet, 0},
-      active: false,
-      reuseaddr: true
-    ])
-    Logger.info "Accepting connections on port #{port}"
-    await_connection(pid)
+    :ok = @listener.prepare()
+    {:ok, socket} = @listener.run(port)
+    Logger.info "MQTTBroker running on Port: #{port}"
+
+    await_connection(socket)
   end
 
-  defp await_connection(pid) do
-    case :gen_tcp.accept(pid) do
+  def await_connection(socket) do
+    case @listener.accept(socket) do
       {:ok, client} ->
-        {:ok, taskPid} = Task.Supervisor.start_child(MqttBroker.TaskSupervisor, fn -> read_data(client) end)
-        :ok = :gen_tcp.controlling_process(client, taskPid)
-        await_connection(pid)
+        start_connection_task(client)
+      {:error, {:tls_alert, _}} ->
+        Logger.info "TLS certificate error"
       {:error, :timeout} ->
         Logger.info "Timed out"
     end
+    await_connection(socket)
   end
 
-  defp read_data(client) do
+  defp start_connection_task(client) do
+    {:ok, pid} = Task.Supervisor.start_child(MqttBroker.TaskSupervisor, fn -> serve(client) end)
+    :ok = @listener.controlling_process(client, pid)
+  end
+
+  defp serve(socket) do
+    socket
+    |> read_data
+
+    serve(socket)
+  end
+
+  defp read_data(socket) do
     socket_timeout = 5000
-    case :gen_tcp.recv(client, 0, socket_timeout) do
+    case @listener.recv(socket, 0, socket_timeout) do
       {:ok, data} ->
         Decoder.decode(data)
       {:error, :closed} ->
-        :ok = :gen_tcp.close(client)
+        :ok = @listener.close(socket)
       {:error, :timeout} ->
-        :ok = :gen_tcp.close(client)
+        :ok = @listener.close(socket)
       {:error, _} ->
-        :ok = :gen_tcp.close(client)
+        :ok = @listener.close(socket)
       _ ->
-        :ok = :gen_tcp.close(client)
+        :ok = @listener.close(socket)
     end
   end
 end
