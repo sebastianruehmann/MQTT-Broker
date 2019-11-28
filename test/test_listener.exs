@@ -1,7 +1,6 @@
 defmodule MqttBrokerTest do
   use ExUnit.Case
 
-
   setup do
     opts = [:binary, packet: :line, active: false]
     {:ok, socket} = :gen_tcp.connect('localhost', 1883, opts)

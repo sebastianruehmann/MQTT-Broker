@@ -14,6 +14,7 @@ defmodule MqttBroker.Messages.Requests.Connect do
             will_topic: "",
             will_message: "",
             clean_session: true
+
   @type t :: %__MODULE__{
     client_id: String.t,
     user_name: String.t,
@@ -46,9 +47,7 @@ defmodule MqttBroker.Messages.Requests.Connect do
     }
   end
 
-  def validate(<<0, 4, "MQTT",  4, flags :: size(8), keep_alive :: size(16), rest :: binary>>) do
-    {:ok}
-  end
+  def validate(<<0, 4, "MQTT",  4, flags :: size(8), keep_alive :: size(16), rest :: binary>>), do: {:ok}
 
   def decode_body(<<0, 4, "MQTT",  4, flags :: size(8), keep_alive :: size(16), rest :: binary>>) do
     <<user_flag :: size(1),
@@ -72,16 +71,7 @@ defmodule MqttBroker.Messages.Requests.Connect do
       end
 
       new(client_id, user_name, password, clean == 1, alive, alive_server,
-        will_flag == 1, decode_qos(w_qos), w_retain == 1, will_topic, will_message)
-  end
-
-  def decode_qos(binary_qos) do
-    case binary_qos do
-      0 -> :fire_and_forget
-      1 -> :at_least_once
-      2 -> :exactly_once
-      3 -> :reserved
-    end
+        will_flag == 1, MqttBroker.Decoder.decode_qos(w_qos), w_retain == 1, will_topic, will_message)
   end
 
   def extract(list) do

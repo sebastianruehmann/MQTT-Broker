@@ -1,71 +1,42 @@
 defmodule MqttBroker.Listener do
-  use Task, restart: :permanent
   require Logger
 
-  alias MqttBroker.Decoder
-  @listener MqttBroker.Listener.Ssl
-  @moduledoc """
-  Documentation for MqttBroker.
-  """
+  @socket MqttBroker.Socket.Ssl
 
-  @doc """
-  Hello world.
+  def child_spec(app_config) do
+    %{
+      id: MqttBroker.Listener,
+      start: {__MODULE__, :start_link, [app_config]}
+    }
+  end
 
-  ## Examples
-
-      iex> MqttBroker.hello
-      :world
-
-  """
-  def start_link(port) do
-    pid = spawn_link(__MODULE__, :init, [port])
+  def start_link(app_config) do
+    pid = spawn_link(__MODULE__, :init, [app_config])
     {:ok, pid}
   end
 
-  def init(port) do
-    :ok = @listener.prepare()
-    {:ok, socket} = @listener.run(port)
-    Logger.info "MQTTBroker running on Port: #{port}"
+  def init(app_config) do
+    :ok = @socket.prepare()
+    {:ok, socket} = @socket.run(app_config[:port])
+    Logger.info "MQTTBroker running on Port: #{app_config[:port]}"
 
-    await_connection(socket)
+    await_connection(socket, app_config)
   end
 
-  def await_connection(socket) do
-    case @listener.accept(socket) do
+  def await_connection(socket, app_config) do
+    case @socket.accept(socket) do
       {:ok, client} ->
-        start_connection_task(client)
+        start_connection_task(client, app_config)
       {:error, {:tls_alert, _}} ->
         Logger.info "TLS certificate error"
       {:error, :timeout} ->
         Logger.info "Timed out"
     end
-    await_connection(socket)
+    await_connection(socket, app_config)
   end
 
-  defp start_connection_task(client) do
-    {:ok, pid} = Task.Supervisor.start_child(MqttBroker.TaskSupervisor, fn -> serve(client) end)
-    :ok = @listener.controlling_process(client, pid)
-  end
-
-  defp serve(socket) do
-    socket
-    |> read_data
-    serve(socket)
-  end
-
-  defp read_data(socket) do
-    socket_timeout = 5000
-    case @listener.recv(socket, 0, socket_timeout) do
-      {:ok, data} ->
-        Decoder.decode(data)
-      {:error, :closed} ->
-        :ok = @listener.close(socket)
-      {:error, :timeout} ->
-        :ok = @listener.close(socket)
-      {:error, _} ->
-        :ok = @listener.close(socket)
-      _ ->
-        :ok = @listener.close(socket)
-    end
+  defp start_connection_task(client, app_config) do
+    {:ok, pid} = MqttBroker.Client.start_link(client, app_config)
+    :ok = @socket.controlling_process(client, pid)
   end
 end

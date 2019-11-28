@@ -1,6 +1,10 @@
-defmodule MqttBroker.Listener.Ssl do
+defmodule MqttBroker.Socket.Ssl do
+  @behaviour MqttBroker.Socket
+
+  @impl
   def prepare, do: :ssl.start()
 
+  @impl
   def run(port) do
     :ssl.listen(port, [
       :binary,
@@ -12,6 +16,7 @@ defmodule MqttBroker.Listener.Ssl do
     ])
   end
 
+  @impl
   def accept(listen_socket) do
     case :ssl.transport_accept(listen_socket) do
       {:ok, transport_socket} ->
@@ -20,13 +25,15 @@ defmodule MqttBroker.Listener.Ssl do
     end
   end
 
-  def handshake(transport_socket), do: :ssl.handshake(transport_socket)
-
+  @impl
   def recv(socket, size, timeout), do: :ssl.recv(socket, size, timeout)
 
+  @impl
   def send(socket, data), do: :ssl.send(socket, data)
 
+  @impl
   def close(socket), do: :ssl.close(socket)
 
+  @impl
   def controlling_process(client, taskPid), do: :ssl.controlling_process(client, taskPid)
 end

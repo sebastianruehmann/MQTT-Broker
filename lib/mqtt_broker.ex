@@ -18,8 +18,7 @@ defmodule MqttBroker do
   """
   def start(_type, _args) do
     children = [
-      { Task.Supervisor, name: MqttBroker.TaskSupervisor },
-      { MqttBroker.Listener, Application.get_env(:mqtt_broker, :port) }
+      { MqttBroker.Listener, Application.get_all_env(:mqtt_broker) }
     ]
     opts = [strategy: :one_for_one, name: MqttBroker.Supervisor]
     Supervisor.start_link(children, opts)
